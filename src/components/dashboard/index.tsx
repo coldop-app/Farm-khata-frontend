@@ -42,7 +42,7 @@ export function Dashboard() {
       name: 'Suppliers',
       value: suppliers.length,
       icon: Users,
-      href: '/suppliers',
+      href: '/dashboard', // TODO: Add suppliers route
       color: 'text-purple-600',
       bg: 'bg-purple-100',
     },
@@ -50,7 +50,7 @@ export function Dashboard() {
       name: 'Lands',
       value: lands.length,
       icon: MapPin,
-      href: '/lands',
+      href: '/dashboard', // TODO: Add lands route
       color: 'text-orange-600',
       bg: 'bg-orange-100',
     },
@@ -138,7 +138,8 @@ export function Dashboard() {
               </Button>
             </Link>
 
-            <Link to="/suppliers">
+            {/* TODO: Add suppliers and lands routes */}
+            {/* <Link to="/suppliers">
               <Button variant="ghost" className="w-full justify-start">
                 View Suppliers
               </Button>
@@ -148,7 +149,7 @@ export function Dashboard() {
               <Button variant="ghost" className="w-full justify-start">
                 Manage Lands
               </Button>
-            </Link>
+            </Link> */}
           </CardContent>
         </Card>
       </div>

@@ -28,47 +28,24 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 
-// Form validation schema - using preprocess to handle empty strings
+// Form validation schema
 const daybookFormSchema = z
   .object({
     type: z.enum(['cash_in', 'cash_out']),
     item_name: z.string().min(1, 'Item name is required'),
     amount: z.number().min(0.01, 'Amount must be greater than 0'),
-    qty: z.preprocess(
-      (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
-      z.number().optional()
-    ),
+    qty: z.number().optional(),
     unit: z.string().optional(),
     payment_type: z.enum(['credit', 'full', 'partial']).optional(),
-    supplier_id: z.preprocess(
-      (val) => (val === '' || val === null || val === undefined ? undefined : val),
-      z.string().optional()
-    ),
+    supplier_id: z.string().optional(),
     buyer: z.string().optional(),
     allocation: z.enum(['farm_inputs', 'labour', 'sold_stock', 'other']),
     date: z.string().min(1, 'Date is required'),
     notes: z.string().optional(),
     // For farm_inputs allocation - these are optional but validated conditionally
-    inventory_item_id: z.preprocess(
-      (val) => (val === '' || val === null || val === undefined ? undefined : val),
-      z.string().optional()
-    ),
-    inventory_qty: z.preprocess(
-      (val) => {
-        if (val === '' || val === null || val === undefined) return undefined;
-        const num = Number(val);
-        return isNaN(num) ? undefined : num;
-      },
-      z.number().optional()
-    ),
-    inventory_unit_cost: z.preprocess(
-      (val) => {
-        if (val === '' || val === null || val === undefined) return undefined;
-        const num = Number(val);
-        return isNaN(num) ? undefined : num;
-      },
-      z.number().optional()
-    ),
+    inventory_item_id: z.string().optional(),
+    inventory_qty: z.number().optional(),
+    inventory_unit_cost: z.number().optional(),
   })
   .refine(
     (data) => {
@@ -111,6 +88,7 @@ export function DaybookForm() {
     setValue,
     formState: { errors },
   } = useForm<DaybookFormData>({
+    // @ts-expect-error - zodResolver type mismatch with zod v4
     resolver: zodResolver(daybookFormSchema),
     defaultValues: {
       type: 'cash_out',
@@ -132,15 +110,8 @@ export function DaybookForm() {
 
   const type = watch('type');
   const allocation = watch('allocation');
-  const inventoryItemId = watch('inventory_item_id');
   const inventoryQty = watch('inventory_qty');
   const inventoryUnitCost = watch('inventory_unit_cost');
-
-  // Calculate total amount for farm_inputs
-  const calculatedAmount =
-    allocation === 'farm_inputs' && inventoryQty && inventoryUnitCost
-      ? inventoryQty * inventoryUnitCost
-      : watch('amount');
 
   // Update amount when inventory fields change
   useEffect(() => {
@@ -167,7 +138,24 @@ export function DaybookForm() {
       }
 
       // Prepare the payload
-      const payload: any = {
+      const payload: {
+        type: 'cash_in' | 'cash_out';
+        item_name: string;
+        amount: number;
+        allocation: 'farm_inputs' | 'labour' | 'sold_stock' | 'other';
+        date: string;
+        payment_type?: 'credit' | 'full' | 'partial';
+        qty?: number;
+        unit?: string;
+        notes?: string;
+        supplier_id?: string;
+        buyer?: string;
+        inventory_lines?: Array<{
+          item_id: string;
+          qty: number;
+          unit_cost: number;
+        }>;
+      } = {
         type: data.type,
         item_name: data.item_name,
         amount: data.amount,
@@ -177,13 +165,13 @@ export function DaybookForm() {
       };
 
       // Add optional fields
-      if (data.qty) payload.qty = data.qty;
-      if (data.unit) payload.unit = data.unit;
-      if (data.notes) payload.notes = data.notes;
-      if (data.supplier_id) {
-        payload.supplier_id = data.supplier_id;
+      if (data.qty !== undefined && data.qty !== null && !isNaN(data.qty)) payload.qty = data.qty;
+      if (data.unit && data.unit.trim()) payload.unit = data.unit.trim();
+      if (data.notes && data.notes.trim()) payload.notes = data.notes.trim();
+      if (data.supplier_id && data.supplier_id.trim()) {
+        payload.supplier_id = data.supplier_id.trim();
       }
-      if (data.buyer) payload.buyer = data.buyer;
+      if (data.buyer && data.buyer.trim()) payload.buyer = data.buyer.trim();
 
       // Handle farm_inputs allocation - requires inventory_lines
       // Only for cash_out type (as per backend controller)
@@ -204,9 +192,12 @@ export function DaybookForm() {
       await mutateAsync(payload);
       toast.success('Daybook entry created successfully');
       navigate({ to: '/daybook' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to create daybook entry';
+        (error as { response?: { data?: { message?: string } }; message?: string })?.response
+          ?.data?.message ||
+        (error as { message?: string })?.message ||
+        'Failed to create daybook entry';
       toast.error(errorMessage);
     }
   };
@@ -572,10 +563,11 @@ export function DaybookForm() {
                           // Select the newly created supplier
                           setValue('supplier_id', response.data._id);
                         }
-                      } catch (error: any) {
+                      } catch (error: unknown) {
                         const errorMessage =
-                          error?.response?.data?.message ||
-                          error?.message ||
+                          (error as { response?: { data?: { message?: string } }; message?: string })
+                            ?.response?.data?.message ||
+                          (error as { message?: string })?.message ||
                           'Failed to create supplier';
                         toast.error(errorMessage);
                       }
