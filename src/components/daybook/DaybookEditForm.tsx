@@ -1,7 +1,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from '@tanstack/react-router';
+import { useParams, useNavigate } from '@tanstack/react-router';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -21,14 +21,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useCreateDaybookEntry, useDaybookSuppliers } from '@/hooks/useDaybook';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  useDaybookEntry,
+  useUpdateDaybookEntry,
+  useDaybookSuppliers,
+} from '@/hooks/useDaybook';
 import { useInventoryItems } from '@/hooks/useInventory';
 import { useCreateSupplier } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ArrowLeft } from 'lucide-react';
 
-// Form validation schema - using preprocess to handle empty strings
+// Form validation schema - same as create form
 const daybookFormSchema = z
   .object({
     type: z.enum(['cash_in', 'cash_out']),
@@ -94,9 +99,11 @@ const daybookFormSchema = z
 
 type DaybookFormData = z.infer<typeof daybookFormSchema>;
 
-export function DaybookForm() {
+export function DaybookEditForm() {
+  const { id } = useParams({ from: '/daybook/$id/edit' });
   const navigate = useNavigate();
-  const { mutateAsync, isPending } = useCreateDaybookEntry();
+  const { data: entry, isLoading: isLoadingEntry, error } = useDaybookEntry(id);
+  const { mutateAsync: updateEntry, isPending } = useUpdateDaybookEntry();
   const { data: suppliers, isLoading: suppliersLoading } = useDaybookSuppliers();
   const { data: inventoryData, isLoading: inventoryLoading } = useInventoryItems({ limit: 1000 });
   const { mutateAsync: createSupplier, isPending: isCreatingSupplier } = useCreateSupplier();
@@ -109,6 +116,7 @@ export function DaybookForm() {
     control,
     watch,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<DaybookFormData>({
     resolver: zodResolver(daybookFormSchema),
@@ -129,6 +137,52 @@ export function DaybookForm() {
       inventory_unit_cost: undefined,
     },
   });
+
+  // Populate form when entry data loads
+  useEffect(() => {
+    if (entry) {
+      // Handle supplier_id - could be string or populated object
+      const supplierId =
+        typeof entry.supplier_id === 'object' && entry.supplier_id !== null
+          ? (entry.supplier_id as any)._id
+          : entry.supplier_id;
+
+      // Handle inventory_lines - extract first line if exists
+      let inventoryItemId = '';
+      let inventoryQty: number | undefined = undefined;
+      let inventoryUnitCost: number | undefined = undefined;
+
+      if (entry.inventory_lines && entry.inventory_lines.length > 0) {
+        const firstLine = entry.inventory_lines[0] as any;
+        inventoryItemId =
+          typeof firstLine.item_id === 'object' && firstLine.item_id !== null
+            ? firstLine.item_id._id
+            : firstLine.item_id;
+        inventoryQty = firstLine.qty;
+        inventoryUnitCost = firstLine.unit_cost;
+      }
+
+      // Format date for input
+      const entryDate = entry.date ? new Date(entry.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+      reset({
+        type: entry.type,
+        item_name: entry.item_name || '',
+        amount: entry.amount || 0,
+        qty: entry.qty || undefined,
+        unit: entry.unit || 'kg',
+        payment_type: entry.payment_type || 'full',
+        supplier_id: supplierId || undefined,
+        buyer: entry.buyer || '',
+        allocation: entry.allocation || 'other',
+        date: entryDate,
+        notes: entry.notes || '',
+        inventory_item_id: inventoryItemId || '',
+        inventory_qty: inventoryQty,
+        inventory_unit_cost: inventoryUnitCost,
+      });
+    }
+  }, [entry, reset]);
 
   const type = watch('type');
   const allocation = watch('allocation');
@@ -182,6 +236,8 @@ export function DaybookForm() {
       if (data.notes) payload.notes = data.notes;
       if (data.supplier_id) {
         payload.supplier_id = data.supplier_id;
+      } else {
+        payload.supplier_id = null; // Explicitly set to null if not provided
       }
       if (data.buyer) payload.buyer = data.buyer;
 
@@ -199,14 +255,17 @@ export function DaybookForm() {
             unit_cost: Number(data.inventory_unit_cost),
           },
         ];
+      } else {
+        // Clear inventory_lines if not farm_inputs
+        payload.inventory_lines = [];
       }
 
-      await mutateAsync(payload);
-      toast.success('Daybook entry created successfully');
-      navigate({ to: '/daybook' });
+      await updateEntry({ id, ...payload });
+      toast.success('Daybook entry updated successfully');
+      navigate({ to: '/daybook/$id', params: { id } });
     } catch (error: any) {
       const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to create daybook entry';
+        error?.response?.data?.message || error?.message || 'Failed to update daybook entry';
       toast.error(errorMessage);
     }
   };
@@ -215,12 +274,63 @@ export function DaybookForm() {
   const isCashOut = type === 'cash_out';
   const isCashIn = type === 'cash_in';
 
+  if (isLoadingEntry) {
+    return (
+      <div className="container max-w-2xl mx-auto py-6">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32 mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <div className="container max-w-2xl mx-auto py-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <h2 className="text-2xl font-semibold">Entry Not Found</h2>
+              <p className="text-muted-foreground">
+                The daybook entry you're trying to edit doesn't exist or has been deleted.
+              </p>
+              <Button onClick={() => navigate({ to: '/daybook' })} variant="outline">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Daybook
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="container max-w-2xl mx-auto py-6">
+    <div className="container max-w-2xl mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          onClick={() => navigate({ to: '/daybook/$id', params: { id } })}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Create Daybook Entry</CardTitle>
-          <CardDescription>Record a new cash transaction</CardDescription>
+          <CardTitle>Edit Daybook Entry</CardTitle>
+          <CardDescription>Update the daybook entry details</CardDescription>
         </CardHeader>
         <CardContent>
           <form
@@ -243,7 +353,7 @@ export function DaybookForm() {
             noValidate
           >
             {/* Transaction Type */}
-      <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="type">Transaction Type *</Label>
               <Controller
                 name="type"
@@ -261,10 +371,10 @@ export function DaybookForm() {
                 )}
               />
               {errors.type && <p className="text-sm text-destructive">{errors.type.message}</p>}
-      </div>
+            </div>
 
             {/* Item Name */}
-      <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="item_name">
                 {isCashIn ? 'Item Sold' : 'Item Name'} *
               </Label>
@@ -276,10 +386,10 @@ export function DaybookForm() {
               {errors.item_name && (
                 <p className="text-sm text-destructive">{errors.item_name.message}</p>
               )}
-      </div>
+            </div>
 
             {/* Allocation */}
-      <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="allocation">Allocation / Destination *</Label>
               <Controller
                 name="allocation"
@@ -301,7 +411,7 @@ export function DaybookForm() {
               {errors.allocation && (
                 <p className="text-sm text-destructive">{errors.allocation.message}</p>
               )}
-      </div>
+            </div>
 
             {/* Farm Inputs Section */}
             {isFarmInputs && isCashOut && (
@@ -309,7 +419,7 @@ export function DaybookForm() {
                 <h3 className="font-semibold text-sm">Inventory Details</h3>
 
                 {/* Inventory Item */}
-      <div className="space-y-2">
+                <div className="space-y-2">
                   <Label htmlFor="inventory_item_id">Inventory Item *</Label>
                   <Controller
                     name="inventory_item_id"
@@ -320,10 +430,10 @@ export function DaybookForm() {
                         onValueChange={field.onChange}
                         disabled={inventoryLoading}
                       >
-          <SelectTrigger>
+                        <SelectTrigger>
                           <SelectValue placeholder="Select inventory item" />
-          </SelectTrigger>
-          <SelectContent>
+                        </SelectTrigger>
+                        <SelectContent>
                           {inventoryData?.data && inventoryData.data.length > 0 ? (
                             inventoryData.data.map((item) => (
                               <SelectItem key={item._id} value={item._id}>
@@ -335,8 +445,8 @@ export function DaybookForm() {
                               No inventory items available
                             </div>
                           )}
-          </SelectContent>
-        </Select>
+                        </SelectContent>
+                      </Select>
                     )}
                   />
                   {errors.inventory_item_id && (
@@ -344,10 +454,10 @@ export function DaybookForm() {
                       {errors.inventory_item_id.message}
                     </p>
                   )}
-      </div>
+                </div>
 
                 {/* Inventory Quantity */}
-      <div className="space-y-2">
+                <div className="space-y-2">
                   <Label htmlFor="inventory_qty">Quantity *</Label>
                   <Input
                     id="inventory_qty"
@@ -369,10 +479,10 @@ export function DaybookForm() {
                   {errors.inventory_qty && (
                     <p className="text-sm text-destructive">{errors.inventory_qty.message}</p>
                   )}
-      </div>
+                </div>
 
                 {/* Unit Cost */}
-      <div className="space-y-2">
+                <div className="space-y-2">
                   <Label htmlFor="inventory_unit_cost">Unit Cost (₹) *</Label>
                   <Input
                     id="inventory_unit_cost"
@@ -396,7 +506,7 @@ export function DaybookForm() {
                       {errors.inventory_unit_cost.message}
                     </p>
                   )}
-      </div>
+                </div>
 
                 {/* Calculated Total */}
                 {inventoryQty && inventoryUnitCost && (
@@ -590,34 +700,34 @@ export function DaybookForm() {
 
             {/* Buyer (for cash_in) */}
             {isCashIn && (
-      <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="buyer">Buyer (Optional)</Label>
                 <Input
                   id="buyer"
                   placeholder="Enter buyer name"
                   {...register('buyer')}
                 />
-      </div>
+              </div>
             )}
 
             {/* Payment Type (for cash_out) */}
             {isCashOut && (
-      <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="payment_type">Payment Type</Label>
                 <Controller
                   name="payment_type"
                   control={control}
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-          <SelectTrigger>
+                      <SelectTrigger>
                         <SelectValue placeholder="Select payment type" />
-          </SelectTrigger>
-          <SelectContent>
+                      </SelectTrigger>
+                      <SelectContent>
                         <SelectItem value="full">Full Payment</SelectItem>
-            <SelectItem value="credit">Credit</SelectItem>
+                        <SelectItem value="credit">Credit</SelectItem>
                         <SelectItem value="partial">Partial Payment</SelectItem>
-          </SelectContent>
-        </Select>
+                      </SelectContent>
+                    </Select>
                   )}
                 />
               </div>
@@ -642,23 +752,23 @@ export function DaybookForm() {
                 placeholder="Additional notes or comments"
                 {...register('notes')}
               />
-      </div>
+            </div>
 
             {/* Submit Button */}
             <div className="flex gap-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate({ to: '/daybook' })}
+                onClick={() => navigate({ to: '/daybook/$id', params: { id } })}
                 className="flex-1"
               >
                 Cancel
               </Button>
               <Button type="submit" disabled={isPending} className="flex-1">
-                {isPending ? 'Creating...' : 'Create Entry'}
-      </Button>
+                {isPending ? 'Updating...' : 'Update Entry'}
+              </Button>
             </div>
-    </form>
+          </form>
         </CardContent>
       </Card>
     </div>

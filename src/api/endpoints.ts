@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
   // Daybook
   daybook: '/daybook',
   daybookById: (id: string) => `/daybook/${id}`,
+  daybookSuppliers: '/daybook/suppliers',
 
   // Inventory
   inventory: '/inventory',

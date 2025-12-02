@@ -147,8 +147,7 @@ export const columns: ColumnDef<DaybookEntry>[] = [
             <DropdownMenuItem
               onClick={() => {
                 if (navigate) {
-                  // Dynamic routes not yet defined in route tree
-                  navigate({ to: `/daybook/${entry._id}` as '/daybook' });
+                  navigate({ to: '/daybook/$id', params: { id: entry._id } });
                 }
               }}
             >
@@ -157,8 +156,7 @@ export const columns: ColumnDef<DaybookEntry>[] = [
             <DropdownMenuItem
               onClick={() => {
                 if (navigate) {
-                  // Dynamic routes not yet defined in route tree
-                  navigate({ to: `/daybook/${entry._id}/edit` as '/daybook' });
+                  navigate({ to: '/daybook/$id/edit', params: { id: entry._id } });
                 }
               }}
             >

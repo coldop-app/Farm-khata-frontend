@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 import { API_ENDPOINTS } from '@/api/endpoints';
-import type { DaybookEntry, PaginatedResponse } from '@/api/types';
+import type { DaybookEntry, PaginatedResponse, Supplier } from '@/api/types';
 
 export const useDaybookEntries = (filters?: {
   type?: string;
@@ -75,6 +75,18 @@ export const useDeleteDaybookEntry = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daybook'] });
+    },
+  });
+};
+
+export const useDaybookSuppliers = () => {
+  return useQuery({
+    queryKey: ['daybook', 'suppliers'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ success: boolean; data: Supplier[] }>(
+        API_ENDPOINTS.daybookSuppliers
+      );
+      return data.data;
     },
   });
 };

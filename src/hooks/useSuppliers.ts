@@ -38,6 +38,7 @@ export const useCreateSupplier = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['daybook', 'suppliers'] });
     },
   });
 };
