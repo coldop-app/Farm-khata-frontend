@@ -96,7 +96,6 @@ export function DaybookEditForm() {
     reset,
     formState: { errors },
   } = useForm<DaybookFormData>({
-    // @ts-expect-error - zodResolver type mismatch with zod v4
     resolver: zodResolver(daybookFormSchema),
     defaultValues: {
       type: 'cash_out',
