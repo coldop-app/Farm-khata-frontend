@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router';
+import { createRootRoute } from '@tanstack/react-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { queryClient } from '@/lib/queryClient';
@@ -10,7 +10,6 @@ export const Route = createRootRoute({
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={queryClient}>
         <AppLayout />
-        <Outlet />
         <Toaster />
       </QueryClientProvider>
     </ThemeProvider>

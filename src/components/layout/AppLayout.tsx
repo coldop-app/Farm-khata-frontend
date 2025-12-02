@@ -45,9 +45,9 @@ export function AppLayout() {
       <AppSidebar />
       <SidebarInset>
         <Navbar />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <Outlet />
-        </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
