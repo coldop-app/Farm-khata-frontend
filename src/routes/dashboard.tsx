@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 
-export const Route = createFileRoute('/')({
-  component: Index,
+export const Route = createFileRoute('/dashboard')({
+  component: Dashboard,
 });
 
-function Index() {
+function Dashboard() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center">
-      <h1>Welcome to farmkhata</h1>
+      <h1>Welcome to Farm Khata Dashboard</h1>
     </div>
   );
 }
