@@ -96,7 +96,6 @@ export function DaybookEditForm() {
     reset,
     formState: { errors },
   } = useForm<DaybookFormData>({
-    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
     resolver: zodResolver(daybookFormSchema),
     defaultValues: {
       type: 'cash_out',

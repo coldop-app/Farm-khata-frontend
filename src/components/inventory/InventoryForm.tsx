@@ -61,7 +61,6 @@ export function InventoryForm({ itemId, defaultValues }: InventoryFormProps) {
     setValue,
     formState: { errors },
   } = useForm<InventoryFormData>({
-    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
     resolver: zodResolver(inventoryFormSchema),
     defaultValues: defaultValues || {
       name: '',
