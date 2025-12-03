@@ -30,6 +30,7 @@ coverage/
 .vite/
 .swc/
 routeTree.gen.ts
+.temp-routes/
 
 # Testing
 coverage/

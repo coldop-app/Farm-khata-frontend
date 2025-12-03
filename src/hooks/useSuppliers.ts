@@ -3,7 +3,7 @@ import apiClient from '@/api/client';
 import { API_ENDPOINTS } from '@/api/endpoints';
 import type { Supplier, ApiResponse, SupplierPayment } from '@/api/types';
 
-export const useSuppliers = (filters?: { search?: string }) => {
+export const useSuppliers = (filters?: { search?: string; limit?: number }) => {
   return useQuery({
     queryKey: ['suppliers', filters],
     queryFn: async () => {

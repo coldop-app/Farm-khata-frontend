@@ -36,6 +36,7 @@ export function SupplierForm({ supplierId, defaultValues }: SupplierFormProps) {
     handleSubmit,
     formState: { errors },
   } = useForm<SupplierFormData>({
+    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
     resolver: zodResolver(supplierFormSchema),
     defaultValues: defaultValues || {
       name: '',

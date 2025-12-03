@@ -56,6 +56,7 @@ export function SupplierView() {
     reset,
     formState: { errors },
   } = useForm<PaymentFormData>({
+    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
       amount: 0,
