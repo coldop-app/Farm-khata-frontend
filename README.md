@@ -13,6 +13,7 @@ A production-ready React application built with Vite, TypeScript, and modern too
 - 🪝 **Husky** - Git hooks for quality assurance
 - 📝 **Commitlint** - Conventional commit messages
 - 🚀 **Production-ready** - Optimized build and development setup
+- 📦 **Code Splitting** - Automatic code splitting with TanStack Router for optimal bundle sizes
 
 Currently, two official plugins are available:
 
@@ -118,6 +119,28 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`
 The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
 
 Note: This will impact Vite dev & build performances.
+
+## Code Splitting
+
+This project uses TanStack Router's automatic code splitting feature to optimize bundle sizes and improve load performance.
+
+### How it works
+
+- **Automatic Code Splitting**: Enabled via `autoCodeSplitting: true` in `vite.config.ts`
+- **Route Components**: Each route's component is automatically split into a separate chunk
+- **Lazy Loading**: Components are loaded on-demand when routes are accessed
+- **Critical vs Non-Critical**:
+  - Critical route configuration (loaders, search validation, etc.) stays in the main bundle
+  - Non-critical parts (components, error components, pending components) are code-split
+
+### Benefits
+
+- ✅ Reduced initial bundle size
+- ✅ Faster initial page load
+- ✅ Better browser caching (smaller, route-specific chunks)
+- ✅ Improved performance for users
+
+For more details, see the [TanStack Router Code Splitting documentation](https://tanstack.com/router/latest/docs/framework/react/guide/code-splitting).
 
 ## Expanding the ESLint configuration
 

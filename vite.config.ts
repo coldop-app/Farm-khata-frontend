@@ -10,6 +10,10 @@ export default defineConfig({
     // Please make sure that '@tanstack/router-plugin' is passed before '@vitejs/plugin-react'
     tanstackRouter({
       target: 'react',
+      // Automatic code splitting: TanStack Router will automatically split route components,
+      // error components, pending components, and not-found components into separate chunks.
+      // Critical route configuration (loaders, search validation, etc.) remains in the main bundle.
+      // See: https://tanstack.com/router/latest/docs/framework/react/guide/code-splitting
       autoCodeSplitting: true,
     }),
     react({
