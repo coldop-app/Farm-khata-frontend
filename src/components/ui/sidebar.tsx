@@ -19,9 +19,8 @@ import {
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSidebarStore } from '@/stores/sidebarStore';
 
-const SIDEBAR_COOKIE_NAME = 'sidebar_state';
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '16rem';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
@@ -64,23 +63,37 @@ function SidebarProvider({
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
 
-  // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
+  // Use Zustand store for sidebar state (persisted to localStorage automatically)
+  // Zustand persist middleware handles restoration from localStorage on mount
+  const isOpen = useSidebarStore((state) => state.isOpen);
+  const setOpenStore = useSidebarStore((state) => state.setOpen);
+
+  // Initialize with defaultOpen on first mount if no persisted state exists
+  React.useEffect(() => {
+    if (defaultOpen !== undefined && typeof window !== 'undefined') {
+      try {
+        const persisted = localStorage.getItem('sidebar-storage');
+        if (!persisted) {
+          setOpenStore(defaultOpen);
+        }
+      } catch {
+        // localStorage might not be available
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Use controlled prop if provided, otherwise use store state
+  const open = openProp ?? isOpen;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === 'function' ? value(open) : value;
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
-        _setOpen(openState);
+        setOpenStore(openState);
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
-    [setOpenProp, open]
+    [setOpenProp, open, setOpenStore]
   );
 
   // Helper to toggle the sidebar.
@@ -583,9 +596,10 @@ function SidebarMenuSkeleton({
   showIcon?: boolean;
 }) {
   // Random width between 50 to 90%.
-  const width = React.useMemo(() => {
+  // Random width between 50–90%, computed once
+  const [width] = React.useState(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`;
-  }, []);
+  });
 
   return (
     <div

@@ -1,6 +1,5 @@
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useParams, useNavigate } from '@tanstack/react-router';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,59 +21,13 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  useDaybookEntry,
-  useUpdateDaybookEntry,
-  useDaybookSuppliers,
-} from '@/hooks/useDaybook';
+import { useDaybookEntry, useUpdateDaybookEntry, useDaybookSuppliers } from '@/hooks/useDaybook';
 import { useInventoryItems } from '@/hooks/useInventory';
 import { useCreateSupplier } from '@/hooks/useSuppliers';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Plus, ArrowLeft } from 'lucide-react';
-
-// Form validation schema - same as create form
-const daybookFormSchema = z
-  .object({
-    type: z.enum(['cash_in', 'cash_out']),
-    item_name: z.string().min(1, 'Item name is required'),
-    amount: z.number().min(0.01, 'Amount must be greater than 0'),
-    qty: z.number().optional(),
-    unit: z.string().optional(),
-    payment_type: z.enum(['credit', 'full', 'partial']).optional(),
-    supplier_id: z.string().optional(),
-    buyer: z.string().optional(),
-    allocation: z.enum(['farm_inputs', 'labour', 'sold_stock', 'other']),
-    date: z.string().min(1, 'Date is required'),
-    notes: z.string().optional(),
-    // For farm_inputs allocation - these are optional but validated conditionally
-    inventory_item_id: z.string().optional(),
-    inventory_qty: z.number().optional(),
-    inventory_unit_cost: z.number().optional(),
-  })
-  .refine(
-    (data) => {
-      // If allocation is farm_inputs and type is cash_out, inventory fields are required
-      if (data.type === 'cash_out' && data.allocation === 'farm_inputs') {
-        return (
-          data.inventory_item_id &&
-          data.inventory_qty !== undefined &&
-          data.inventory_qty !== null &&
-          data.inventory_qty > 0 &&
-          data.inventory_unit_cost !== undefined &&
-          data.inventory_unit_cost !== null &&
-          data.inventory_unit_cost > 0
-        );
-      }
-      return true;
-    },
-    {
-      message: 'All inventory fields are required for farm inputs allocation',
-      path: ['inventory_item_id'],
-    }
-  );
-
-type DaybookFormData = z.infer<typeof daybookFormSchema>;
+import { daybookFormSchema, type DaybookFormData } from './daybook-form-schema';
 
 export function DaybookEditForm() {
   const { id } = useParams({ from: '/daybook/$id/edit' });
@@ -91,12 +44,13 @@ export function DaybookEditForm() {
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
     reset,
     formState: { errors },
   } = useForm<DaybookFormData>({
-    resolver: zodResolver(daybookFormSchema),
+    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(daybookFormSchema) as any,
     defaultValues: {
       type: 'cash_out',
       item_name: '',
@@ -121,7 +75,7 @@ export function DaybookEditForm() {
       // Handle supplier_id - could be string or populated object
       const supplierId =
         typeof entry.supplier_id === 'object' && entry.supplier_id !== null
-          ? (entry.supplier_id as any)._id
+          ? (entry.supplier_id as { _id: string })._id
           : entry.supplier_id;
 
       // Handle inventory_lines - extract first line if exists
@@ -130,7 +84,11 @@ export function DaybookEditForm() {
       let inventoryUnitCost: number | undefined = undefined;
 
       if (entry.inventory_lines && entry.inventory_lines.length > 0) {
-        const firstLine = entry.inventory_lines[0] as any;
+        const firstLine = entry.inventory_lines[0] as {
+          item_id: string | { _id: string };
+          qty: number;
+          unit_cost: number;
+        };
         inventoryItemId =
           typeof firstLine.item_id === 'object' && firstLine.item_id !== null
             ? firstLine.item_id._id
@@ -140,7 +98,9 @@ export function DaybookEditForm() {
       }
 
       // Format date for input
-      const entryDate = entry.date ? new Date(entry.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      const entryDate = entry.date
+        ? new Date(entry.date).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
 
       reset({
         type: entry.type,
@@ -161,10 +121,10 @@ export function DaybookEditForm() {
     }
   }, [entry, reset]);
 
-  const type = watch('type');
-  const allocation = watch('allocation');
-  const inventoryQty = watch('inventory_qty');
-  const inventoryUnitCost = watch('inventory_unit_cost');
+  const type = useWatch({ control, name: 'type' });
+  const allocation = useWatch({ control, name: 'allocation' });
+  const inventoryQty = useWatch({ control, name: 'inventory_qty' });
+  const inventoryUnitCost = useWatch({ control, name: 'inventory_unit_cost' });
 
   // Update amount when inventory fields change
   useEffect(() => {
@@ -250,8 +210,8 @@ export function DaybookEditForm() {
       navigate({ to: '/daybook/$id', params: { id } });
     } catch (error: unknown) {
       const errorMessage =
-        (error as { response?: { data?: { message?: string } }; message?: string })?.response
-          ?.data?.message ||
+        (error as { response?: { data?: { message?: string } }; message?: string })?.response?.data
+          ?.message ||
         (error as { message?: string })?.message ||
         'Failed to update daybook entry';
       toast.error(errorMessage);
@@ -322,21 +282,16 @@ export function DaybookEditForm() {
         </CardHeader>
         <CardContent>
           <form
-            onSubmit={handleSubmit(
-              onSubmit,
-              (errors) => {
-                // Show validation errors
-                console.log('Form validation errors:', errors);
-                const errorMessages = Object.values(errors)
-                  .map((error) => error?.message)
-                  .filter(Boolean);
-                if (errorMessages.length > 0) {
-                  toast.error(errorMessages[0] || 'Please fix the form errors');
-                } else {
-                  toast.error('Please fill in all required fields');
-                }
+            onSubmit={handleSubmit(onSubmit, (formErrors) => {
+              const errorMessages = Object.values(formErrors)
+                .map((error) => error?.message)
+                .filter(Boolean);
+              if (errorMessages.length > 0) {
+                toast.error(errorMessages[0] || 'Please fix the form errors');
+              } else {
+                toast.error('Please fill in all required fields');
               }
-            )}
+            })}
             className="space-y-6"
             noValidate
           >
@@ -363,9 +318,7 @@ export function DaybookEditForm() {
 
             {/* Item Name */}
             <div className="space-y-2">
-              <Label htmlFor="item_name">
-                {isCashIn ? 'Item Sold' : 'Item Name'} *
-              </Label>
+              <Label htmlFor="item_name">{isCashIn ? 'Item Sold' : 'Item Name'} *</Label>
               <Input
                 id="item_name"
                 placeholder={isCashIn ? 'e.g., Wheat, Potatoes' : 'e.g., Fertilizer, Seeds'}
@@ -414,8 +367,8 @@ export function DaybookEditForm() {
                     control={control}
                     render={({ field }) => (
                       <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
+                        value={field.value || undefined}
+                        onValueChange={(value) => field.onChange(value || null)}
                         disabled={inventoryLoading}
                       >
                         <SelectTrigger>
@@ -438,9 +391,7 @@ export function DaybookEditForm() {
                     )}
                   />
                   {errors.inventory_item_id && (
-                    <p className="text-sm text-destructive">
-                      {errors.inventory_item_id.message}
-                    </p>
+                    <p className="text-sm text-destructive">{errors.inventory_item_id.message}</p>
                   )}
                 </div>
 
@@ -490,9 +441,7 @@ export function DaybookEditForm() {
                     })}
                   />
                   {errors.inventory_unit_cost && (
-                    <p className="text-sm text-destructive">
-                      {errors.inventory_unit_cost.message}
-                    </p>
+                    <p className="text-sm text-destructive">{errors.inventory_unit_cost.message}</p>
                   )}
                 </div>
 
@@ -672,8 +621,12 @@ export function DaybookEditForm() {
                         }
                       } catch (error: unknown) {
                         const errorMessage =
-                          (error as { response?: { data?: { message?: string } }; message?: string })
-                            ?.response?.data?.message ||
+                          (
+                            error as {
+                              response?: { data?: { message?: string } };
+                              message?: string;
+                            }
+                          )?.response?.data?.message ||
                           (error as { message?: string })?.message ||
                           'Failed to create supplier';
                         toast.error(errorMessage);
@@ -691,11 +644,7 @@ export function DaybookEditForm() {
             {isCashIn && (
               <div className="space-y-2">
                 <Label htmlFor="buyer">Buyer (Optional)</Label>
-                <Input
-                  id="buyer"
-                  placeholder="Enter buyer name"
-                  {...register('buyer')}
-                />
+                <Input id="buyer" placeholder="Enter buyer name" {...register('buyer')} />
               </div>
             )}
 
@@ -725,22 +674,14 @@ export function DaybookEditForm() {
             {/* Date */}
             <div className="space-y-2">
               <Label htmlFor="date">Date *</Label>
-              <Input
-                id="date"
-                type="date"
-                {...register('date')}
-              />
+              <Input id="date" type="date" {...register('date')} />
               {errors.date && <p className="text-sm text-destructive">{errors.date.message}</p>}
             </div>
 
             {/* Notes */}
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
-              <Input
-                id="notes"
-                placeholder="Additional notes or comments"
-                {...register('notes')}
-              />
+              <Input id="notes" placeholder="Additional notes or comments" {...register('notes')} />
             </div>
 
             {/* Submit Button */}

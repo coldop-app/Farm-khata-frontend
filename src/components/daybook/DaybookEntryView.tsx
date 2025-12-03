@@ -31,9 +31,11 @@ export function DaybookEntryView() {
       toast.success('Daybook entry deleted successfully');
       setIsDeleteDialogOpen(false);
       navigate({ to: '/daybook' });
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage =
-        error?.response?.data?.message || error?.message || 'Failed to delete entry';
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (error as { message?: string })?.message ||
+        'Failed to delete entry';
       toast.error(errorMessage);
     }
   };
@@ -82,28 +84,32 @@ export function DaybookEntryView() {
   }
 
   // Type guard for populated supplier
-  const supplier = entry.supplier_id as any;
-  const isSupplierObject = supplier && typeof supplier === 'object' && supplier.name;
+  const supplier = entry.supplier_id as
+    | string
+    | { _id: string; name: string; phone?: string; outstanding_amount?: number }
+    | null
+    | undefined;
+  const isSupplierObject =
+    supplier && typeof supplier === 'object' && 'name' in supplier && supplier.name;
 
   // Type guard for populated activity
-  const activity = entry.linked_activity_id as any;
-  const isActivityObject = activity && typeof activity === 'object' && activity.category;
+  const activity = entry.linked_activity_id as
+    | string
+    | { _id: string; category: string; date?: string }
+    | null
+    | undefined;
+  const isActivityObject =
+    activity && typeof activity === 'object' && 'category' in activity && activity.category;
 
   // Format date
   const formattedDate = entry.date ? format(new Date(entry.date), 'PPP') : 'N/A';
-  const formattedDateTime = entry.date
-    ? format(new Date(entry.date), 'PPP p')
-    : 'N/A';
+  const formattedDateTime = entry.date ? format(new Date(entry.date), 'PPP p') : 'N/A';
 
   return (
     <div className="container max-w-4xl mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={() => navigate({ to: '/daybook' })}
-          className="gap-2"
-        >
+        <Button variant="ghost" onClick={() => navigate({ to: '/daybook' })} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Back to Daybook
         </Button>
@@ -129,8 +135,8 @@ export function DaybookEntryView() {
               <DialogHeader>
                 <DialogTitle>Are you sure?</DialogTitle>
                 <DialogDescription>
-                  This action cannot be undone. This will permanently delete this daybook entry
-                  and may affect related inventory and supplier records.
+                  This action cannot be undone. This will permanently delete this daybook entry and
+                  may affect related inventory and supplier records.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
@@ -141,11 +147,7 @@ export function DaybookEntryView() {
                 >
                   Cancel
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                >
+                <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                   {isDeleting ? 'Deleting...' : 'Delete'}
                 </Button>
               </DialogFooter>
@@ -269,67 +271,91 @@ export function DaybookEntryView() {
           )}
 
           {/* Inventory Lines (for farm_inputs) */}
-          {entry.allocation === 'farm_inputs' && entry.inventory_lines && entry.inventory_lines.length > 0 && (
-            <>
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Inventory Details</h3>
-                <div className="space-y-4">
-                  {entry.inventory_lines.map((line: any, index: number) => {
-                    const item = line.item_id;
-                    const isItemObject = item && typeof item === 'object' && item.name;
-                    return (
-                      <Card key={index} className="bg-muted/50">
-                        <CardContent className="p-4">
-                          <div className="grid grid-cols-3 gap-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Item</p>
-                              <p className="font-medium">
-                                {isItemObject ? item.name : 'Unknown Item'}
-                              </p>
-                              {isItemObject && item.unit && (
-                                <p className="text-xs text-muted-foreground">Unit: {item.unit}</p>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Quantity</p>
-                              <p className="font-medium">{line.qty}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Unit Cost</p>
-                              <p className="font-medium">
-                                ₹{line.unit_cost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-2 pt-2 border-t">
-                            <p className="text-sm text-muted-foreground">Line Total</p>
-                            <p className="font-semibold">
-                              ₹{(line.qty * line.unit_cost).toLocaleString('en-IN', {
-                                minimumFractionDigits: 2,
-                              })}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-              <Separator />
-            </>
-          )}
-
-          {/* Sold Lines (for cash_in with sold_stock) */}
-          {entry.allocation === 'sold_stock' &&
-            entry.sold_lines &&
-            entry.sold_lines.length > 0 && (
+          {entry.allocation === 'farm_inputs' &&
+            entry.inventory_lines &&
+            entry.inventory_lines.length > 0 && (
               <>
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Sold Items</h3>
+                  <h3 className="text-lg font-semibold mb-4">Inventory Details</h3>
                   <div className="space-y-4">
-                    {entry.sold_lines.map((line: any, index: number) => {
+                    {entry.inventory_lines.map(
+                      (
+                        line: {
+                          item_id: string | { _id: string; name: string; unit?: string };
+                          qty: number;
+                          unit_cost: number;
+                        },
+                        index: number
+                      ) => {
+                        const item = line.item_id;
+                        const isItemObject =
+                          item && typeof item === 'object' && 'name' in item && item.name;
+                        return (
+                          <Card key={index} className="bg-muted/50">
+                            <CardContent className="p-4">
+                              <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Item</p>
+                                  <p className="font-medium">
+                                    {isItemObject ? item.name : 'Unknown Item'}
+                                  </p>
+                                  {isItemObject && item.unit && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Unit: {item.unit}
+                                    </p>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Quantity</p>
+                                  <p className="font-medium">{line.qty}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Unit Cost</p>
+                                  <p className="font-medium">
+                                    ₹
+                                    {line.unit_cost.toLocaleString('en-IN', {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="mt-2 pt-2 border-t">
+                                <p className="text-sm text-muted-foreground">Line Total</p>
+                                <p className="font-semibold">
+                                  ₹
+                                  {(line.qty * line.unit_cost).toLocaleString('en-IN', {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
+
+          {/* Sold Lines (for cash_in with sold_stock) */}
+          {entry.allocation === 'sold_stock' && entry.sold_lines && entry.sold_lines.length > 0 && (
+            <>
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Sold Items</h3>
+                <div className="space-y-4">
+                  {entry.sold_lines.map(
+                    (
+                      line: {
+                        item_id: string | { _id: string; name: string; unit?: string };
+                        qty: number;
+                      },
+                      index: number
+                    ) => {
                       const item = line.item_id;
-                      const isItemObject = item && typeof item === 'object' && item.name;
+                      const isItemObject =
+                        item && typeof item === 'object' && 'name' in item && item.name;
                       return (
                         <Card key={index} className="bg-muted/50">
                           <CardContent className="p-4">
@@ -351,12 +377,13 @@ export function DaybookEntryView() {
                           </CardContent>
                         </Card>
                       );
-                    })}
-                  </div>
+                    }
+                  )}
                 </div>
-                <Separator />
-              </>
-            )}
+              </div>
+              <Separator />
+            </>
+          )}
 
           {/* Linked Activity */}
           {(isActivityObject || entry.linked_activity_id) && (
@@ -373,9 +400,7 @@ export function DaybookEntryView() {
                       {activity.date && (
                         <div>
                           <p className="text-sm text-muted-foreground">Activity Date</p>
-                          <p className="font-medium">
-                            {format(new Date(activity.date), 'PPP')}
-                          </p>
+                          <p className="font-medium">{format(new Date(activity.date), 'PPP')}</p>
                         </div>
                       )}
                     </>

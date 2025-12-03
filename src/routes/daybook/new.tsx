@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { DaybookForm } from '@/components/daybook/DaybookForm';
+import DaybookForm from '@/components/daybook/DaybookForm';
 import { z } from 'zod';
 
 const daybookNewSearchSchema = z.object({
