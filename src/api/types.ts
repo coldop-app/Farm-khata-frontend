@@ -44,6 +44,24 @@ export interface Supplier {
   outstanding_amount: number;
   total_purchases?: number;
   total_paid?: number;
+  purchases?: string[] | DaybookEntry[];
+  payments?: string[] | SupplierPayment[];
+  purchases_detail?: DaybookEntry[];
+  payments_detail?: SupplierPayment[];
+  metadata?: Record<string, any>;
+}
+
+// Supplier Payment
+export interface SupplierPayment {
+  _id: string;
+  supplier_id: string | Supplier;
+  amount: number;
+  date: string;
+  mode: 'cash' | 'upi' | 'bank' | 'other';
+  allocation_type: 'auto' | 'manual';
+  linked_purchase_ids?: string[] | DaybookEntry[];
+  daybook_entry_id?: string | DaybookEntry;
+  metadata?: Record<string, any>;
 }
 
 // Land

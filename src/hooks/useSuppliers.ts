@@ -1,13 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/api/client';
 import { API_ENDPOINTS } from '@/api/endpoints';
-import type { Supplier, PaginatedResponse } from '@/api/types';
+import type { Supplier, ApiResponse, SupplierPayment } from '@/api/types';
 
-export const useSuppliers = (filters?: { page?: number; limit?: number }) => {
+export const useSuppliers = (filters?: { search?: string }) => {
   return useQuery({
     queryKey: ['suppliers', filters],
     queryFn: async () => {
-      const { data } = await apiClient.get<PaginatedResponse<Supplier>>(API_ENDPOINTS.suppliers, {
+      const { data } = await apiClient.get<ApiResponse<Supplier[]>>(API_ENDPOINTS.suppliers, {
         params: filters,
       });
       return data;
@@ -67,6 +67,47 @@ export const useDeleteSupplier = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    },
+  });
+};
+
+export const useSupplierPayments = (supplierId: string) => {
+  return useQuery({
+    queryKey: ['suppliers', supplierId, 'payments'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<ApiResponse<SupplierPayment[]>>(
+        API_ENDPOINTS.supplierPayments(supplierId)
+      );
+      return data;
+    },
+    enabled: !!supplierId,
+  });
+};
+
+export const useMakeSupplierPayment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      supplierId,
+      ...payment
+    }: {
+      supplierId: string;
+      amount: number;
+      date?: string;
+      mode?: 'cash' | 'upi' | 'bank' | 'other';
+      allocation_type?: 'auto' | 'manual';
+      linked_purchase_ids?: string[];
+      notes?: string;
+    }) => {
+      const { data } = await apiClient.post(API_ENDPOINTS.supplierPayments(supplierId), payment);
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers', variables.supplierId] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers', variables.supplierId, 'payments'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['daybook'] });
     },
   });
 };

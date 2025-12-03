@@ -1,0 +1,1 @@
+import{jt as e,st as t}from"./main-D8az8Ed0.js";var n=t(),r=e();function i(){let e=(0,n.c)(1),t;return e[0]===Symbol.for(`react.memo_cache_sentinel`)?(t=(0,r.jsx)(`div`,{className:`flex min-h-svh flex-col items-center justify-center`,children:(0,r.jsx)(`h1`,{children:`Welcome to farmkhata`})}),e[0]=t):t=e[0],t}export{i as component};
