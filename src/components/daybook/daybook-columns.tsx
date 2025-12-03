@@ -3,67 +3,59 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { ArrowUpDown, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
-import type { NavigateOptions } from '@tanstack/react-router';
 
 export type DaybookEntry = {
   _id: string;
   date: string;
+  createdAt?: string;
   item_name: string;
   type: 'cash_in' | 'cash_out';
   amount: number;
-  allocation?: string;
+  qty?: number | null;
+  unit?: string | null;
+  payment_type?: 'credit' | 'full' | 'partial';
+  supplier_id?: {
+    _id: string;
+    name: string;
+    phone?: string;
+  } | null;
+  buyer?: string | null;
+  allocation?: 'farm_inputs' | 'labour' | 'sold_stock' | 'other';
+  inventory_lines?: Array<{
+    item_id:
+      | string
+      | {
+          _id: string;
+          name: string;
+          unit: string;
+        };
+    qty: number;
+    unit_cost: number;
+  }>;
 };
 
 export const columns: ColumnDef<DaybookEntry>[] = [
   {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: 'date',
+    accessorKey: '_id',
     header: ({ column }) => {
       return (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-8 px-0 font-semibold"
         >
-          Date
+          Ref. No.
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
-    cell: ({ row }) => {
-      const date = new Date(row.getValue('date'));
-      return <div className="font-medium">{format(date, 'MMM dd, yyyy')}</div>;
+    cell: ({ row, table }) => {
+      const index = table.getRowModel().rows.findIndex((r) => r.id === row.id);
+      return <div className="font-medium ml-4">{index + 1}</div>;
     },
+    size: 80,
   },
   {
     accessorKey: 'item_name',
@@ -72,35 +64,110 @@ export const columns: ColumnDef<DaybookEntry>[] = [
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-8 px-0 font-semibold"
         >
-          Item
+          Item Name
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
-    cell: ({ row }) => <div className="font-medium">{row.getValue('item_name')}</div>,
+    cell: ({ row }) => <div className="font-medium ml-2">{row.getValue('item_name')}</div>,
+    size: 150,
   },
   {
-    accessorKey: 'type',
-    header: 'Type',
-    cell: ({ row }) => {
-      const type = row.getValue('type') as string;
+    accessorKey: 'date',
+    header: ({ column }) => {
       return (
-        <Badge
-          variant={type === 'cash_in' ? 'default' : 'outline'}
-          className={
-            type === 'cash_out'
-              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400'
-              : ''
-          }
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-8 px-0 font-semibold"
         >
-          {type === 'cash_in' ? 'Cash In' : 'Cash Out'}
-        </Badge>
+          Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
       );
     },
-    filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id));
+    cell: ({ row }) => {
+      const date = new Date(row.getValue('date'));
+      return <div className="font-medium">{format(date, 'dd.MM.yyyy')}</div>;
     },
+    size: 120,
+  },
+  {
+    id: 'time',
+    header: () => {
+      return <div className="font-semibold">Time</div>;
+    },
+    cell: ({ row }) => {
+      const entry = row.original;
+      const timeSource = entry.createdAt || entry.date;
+      const date = new Date(timeSource);
+      return <div className="font-medium">{format(date, 'h:mm a')}</div>;
+    },
+    size: 100,
+  },
+  {
+    accessorKey: 'qty',
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-8 px-0 font-semibold"
+        >
+          Quantity
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
+    cell: ({ row }) => {
+      const entry = row.original;
+      let qty = entry.qty;
+
+      // If qty is not available at top level, check inventory_lines for farm_inputs
+      if (
+        (qty == null || qty === null) &&
+        entry.allocation === 'farm_inputs' &&
+        entry.inventory_lines &&
+        entry.inventory_lines.length > 0
+      ) {
+        qty = entry.inventory_lines[0].qty;
+      }
+
+      return <div className="font-medium ml-4">{qty != null ? qty : '-'}</div>;
+    },
+    size: 100,
+  },
+  {
+    accessorKey: 'unit',
+    header: () => {
+      return <div className="font-semibold">UOM</div>;
+    },
+    cell: ({ row }) => {
+      const entry = row.original;
+      let unit = entry.unit;
+
+      // If unit is not available at top level, check inventory_lines for farm_inputs
+      if (
+        !unit &&
+        entry.allocation === 'farm_inputs' &&
+        entry.inventory_lines &&
+        entry.inventory_lines.length > 0
+      ) {
+        const firstLine = entry.inventory_lines[0];
+        if (
+          firstLine.item_id &&
+          typeof firstLine.item_id === 'object' &&
+          'unit' in firstLine.item_id
+        ) {
+          unit = firstLine.item_id.unit;
+        }
+      }
+
+      return <div className="font-medium">{unit || '-'}</div>;
+    },
+    size: 100,
   },
   {
     accessorKey: 'amount',
@@ -109,62 +176,88 @@ export const columns: ColumnDef<DaybookEntry>[] = [
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          className="h-8 px-0 font-semibold"
         >
-          Amount
+          Amount (Rs.)
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue('amount'));
-      const formatted = `₹${amount.toLocaleString('en-IN')}`;
-      return <div className="font-semibold">{formatted}</div>;
-    },
-  },
-  {
-    id: 'actions',
-    enableHiding: false,
-    cell: ({ row, table }) => {
-      const entry = row.original;
-      // Get navigate function from table meta
-      const navigate = (table.options.meta as { navigate?: (options: NavigateOptions) => void })
-        ?.navigate;
-
+      const paymentType = row.original.payment_type;
+      const formatted = amount.toLocaleString('en-IN');
+      const isPaid = paymentType === 'full';
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(entry._id)}>
-              Copy entry ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                if (navigate) {
-                  navigate({ to: '/daybook/$id', params: { id: entry._id } });
-                }
-              }}
-            >
-              View details
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                if (navigate) {
-                  navigate({ to: '/daybook/$id/edit', params: { id: entry._id } });
-                }
-              }}
-            >
-              Edit entry
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="font-semibold flex items-center gap-2">
+          {isPaid ? (
+            <CheckCircle2 className="h-4 w-4 text-red-600" />
+          ) : (
+            <Circle className="h-4 w-4 text-red-600 fill-red-600" />
+          )}
+          <span>{formatted}</span>
+        </div>
       );
     },
+    size: 140,
+  },
+  {
+    accessorKey: 'payment_type',
+    header: () => {
+      return <div className="font-semibold">Payment Type</div>;
+    },
+    cell: ({ row }) => {
+      const paymentType = row.getValue('payment_type') as string | undefined;
+      if (!paymentType) return <div className="text-muted-foreground">-</div>;
+      const labels: Record<string, string> = {
+        credit: 'On Credit',
+        full: 'Fully Paid',
+        partial: 'Partial Payment',
+      };
+      return <div className="font-medium">{labels[paymentType] || paymentType}</div>;
+    },
+    size: 130,
+  },
+  {
+    id: 'supplier_buyer',
+    header: () => {
+      return <div className="font-semibold">Supplier/Buyer</div>;
+    },
+    cell: ({ row }) => {
+      const entry = row.original;
+      if (entry.supplier_id && typeof entry.supplier_id === 'object') {
+        return <div className="font-medium">{entry.supplier_id.name}</div>;
+      }
+      if (entry.buyer) {
+        return <div className="font-medium">{entry.buyer}</div>;
+      }
+      return <div className="text-muted-foreground">NA</div>;
+    },
+    size: 150,
+  },
+  {
+    accessorKey: 'allocation',
+    header: () => {
+      return <div className="font-semibold">Allocation Status</div>;
+    },
+    cell: ({ row }) => {
+      const allocation = row.getValue('allocation') as string | undefined;
+      if (!allocation) return <div className="text-muted-foreground">-</div>;
+      const labels: Record<string, string> = {
+        farm_inputs: 'Inventory',
+        labour: 'Labour',
+        sold_stock: 'Sold Stock',
+        other: 'Other',
+      };
+      return (
+        <Badge
+          variant="outline"
+          className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-400 dark:border-purple-900"
+        >
+          {labels[allocation] || allocation}
+        </Badge>
+      );
+    },
+    size: 150,
   },
 ];

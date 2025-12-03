@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { NavigateOptions } from '@tanstack/react-router';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -85,6 +86,7 @@ export function InventoryDataTable<TData, TValue>({
     } as TableMeta<TData>,
   });
 
+  const isMobile = useIsMobile();
   // Get unique categories for filter
   const categories = React.useMemo(() => {
     const cats = new Set<string>();
@@ -98,12 +100,12 @@ export function InventoryDataTable<TData, TValue>({
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
         <Input
           placeholder="Filter items..."
           value={(table.getColumn('name')?.getFilterValue() as string) ?? ''}
           onChange={(event) => table.getColumn('name')?.setFilterValue(event.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
         />
 
         <Select
@@ -112,7 +114,7 @@ export function InventoryDataTable<TData, TValue>({
             table.getColumn('category')?.setFilterValue(value === 'all' ? '' : value)
           }
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -127,7 +129,7 @@ export function InventoryDataTable<TData, TValue>({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
+            <Button variant="outline" className="w-full sm:w-auto sm:ml-auto">
               Columns <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -151,7 +153,7 @@ export function InventoryDataTable<TData, TValue>({
         </DropdownMenu>
       </div>
 
-      <div className="overflow-hidden rounded-md border">
+      <div className="rounded-md border -mx-6 sm:mx-0">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -199,41 +201,44 @@ export function InventoryDataTable<TData, TValue>({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between space-x-2">
-        <div className="flex-1 text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="text-sm text-muted-foreground">
           {table.getFilteredSelectedRowModel().rows.length} of{' '}
           {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
-            <Select
-              value={`${table.getState().pagination.pageSize}`}
-              onValueChange={(value) => {
-                table.setPageSize(Number(value));
-              }}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={table.getState().pagination.pageSize} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:space-x-6 lg:space-x-8">
+          {!isMobile && (
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium whitespace-nowrap">Rows per page</p>
+              <Select
+                value={`${table.getState().pagination.pageSize}`}
+                onValueChange={(value) => {
+                  table.setPageSize(Number(value));
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={table.getState().pagination.pageSize} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((pageSize) => (
+                    <SelectItem key={pageSize} value={`${pageSize}`}>
+                      {pageSize}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="flex items-center justify-center text-sm font-medium">
             Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
           </div>
-          <div className="space-x-2">
+          <div className="flex items-center space-x-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}
+              className="flex-1 sm:flex-none"
             >
               Previous
             </Button>
@@ -242,6 +247,7 @@ export function InventoryDataTable<TData, TValue>({
               size="sm"
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
+              className="flex-1 sm:flex-none"
             >
               Next
             </Button>

@@ -19,16 +19,30 @@ export function DaybookList() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 ">
       {/* Header */}
       <Card className="border border-border/40 shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Daybook Entries</CardTitle>
+          <CardTitle className="text-lg font-semibold">Transaction Breakdown</CardTitle>
           <CardAction>
-            <Button onClick={() => navigate({ to: '/daybook/new' })} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Entry
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => navigate({ to: '/daybook/new', search: { type: 'cash_in' } })}
+                size="sm"
+                variant="default"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Cash In
+              </Button>
+              <Button
+                onClick={() => navigate({ to: '/daybook/new', search: { type: 'cash_out' } })}
+                size="sm"
+                variant="outline"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Cash Out
+              </Button>
+            </div>
           </CardAction>
         </CardHeader>
       </Card>

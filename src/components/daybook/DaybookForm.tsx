@@ -1,7 +1,7 @@
 import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -88,6 +88,7 @@ type DaybookFormData = z.infer<typeof daybookFormSchema>;
 
 export function DaybookForm() {
   const navigate = useNavigate();
+  const search = useSearch({ from: '/daybook/new' });
   const { mutateAsync, isPending } = useCreateDaybookEntry();
   const { data: suppliers, isLoading: suppliersLoading } = useDaybookSuppliers();
   const { data: inventoryData, isLoading: inventoryLoading } = useInventoryItems({ limit: 1000 });
@@ -105,6 +106,9 @@ export function DaybookForm() {
     supplier_id: '',
   });
 
+  // Get type from search params or default to cash_out
+  const initialType = (search?.type as 'cash_in' | 'cash_out' | undefined) || 'cash_out';
+
   const {
     register,
     handleSubmit,
@@ -115,7 +119,7 @@ export function DaybookForm() {
     // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
     resolver: zodResolver(daybookFormSchema),
     defaultValues: {
-      type: 'cash_out',
+      type: initialType,
       item_name: '',
       amount: null,
       qty: null,
@@ -131,6 +135,13 @@ export function DaybookForm() {
       inventory_unit_cost: null,
     },
   });
+
+  // Update type when search params change
+  useEffect(() => {
+    if (search?.type && (search.type === 'cash_in' || search.type === 'cash_out')) {
+      setValue('type', search.type, { shouldValidate: true });
+    }
+  }, [search?.type, setValue]);
 
   const type = useWatch({ control, name: 'type' });
   const allocation = useWatch({ control, name: 'allocation' });
@@ -294,7 +305,11 @@ export function DaybookForm() {
                 name="type"
                 control={control}
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={!!search?.type}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -306,6 +321,11 @@ export function DaybookForm() {
                 )}
               />
               {errors.type && <p className="text-sm text-destructive">{errors.type.message}</p>}
+              {search?.type && (
+                <p className="text-xs text-muted-foreground">
+                  Transaction type is set based on the button you clicked
+                </p>
+              )}
             </div>
 
             {/* Item Name */}

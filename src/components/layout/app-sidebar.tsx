@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { Home, BookOpen, Package, Users, MapPin, Activity } from 'lucide-react';
+import { BookOpen, Package, Users, MapPin, Activity } from 'lucide-react';
 import { useLocation, Link } from '@tanstack/react-router';
 
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/sidebar';
 
 const navigationItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
+  // { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Daybook', href: '/daybook', icon: BookOpen },
   { name: 'Inventory', href: '/inventory', icon: Package },
   { name: 'Suppliers', href: '/suppliers', icon: Users },

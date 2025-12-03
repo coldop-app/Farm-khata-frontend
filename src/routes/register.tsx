@@ -40,7 +40,7 @@ function Register() {
         setFarmer(data.data);
       }
       toast.success('Account created successfully');
-      navigate({ to: '/dashboard' });
+      navigate({ to: '/daybook' });
     },
     onError: (error: unknown) => {
       const errorMessage =

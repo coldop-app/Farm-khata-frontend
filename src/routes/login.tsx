@@ -35,7 +35,7 @@ function Login() {
         setFarmer(data.data);
       }
       toast.success('Logged in successfully');
-      navigate({ to: '/dashboard' });
+      navigate({ to: '/daybook' });
     },
     onError: (error: unknown) => {
       const errorMessage =
