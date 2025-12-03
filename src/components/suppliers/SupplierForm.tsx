@@ -36,8 +36,8 @@ export function SupplierForm({ supplierId, defaultValues }: SupplierFormProps) {
     handleSubmit,
     formState: { errors },
   } = useForm<SupplierFormData>({
-    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
-    resolver: zodResolver(supplierFormSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(supplierFormSchema as any) as any,
     defaultValues: defaultValues || {
       name: '',
       phone: '',

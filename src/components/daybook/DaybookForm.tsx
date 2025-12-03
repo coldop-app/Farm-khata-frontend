@@ -56,9 +56,8 @@ export default function DaybookForm() {
     setValue,
     formState: { errors },
   } = useForm<DaybookFormData>({
-    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(daybookFormSchema) as any,
+    resolver: zodResolver(daybookFormSchema as any) as any,
     defaultValues: {
       type: initialType,
       item_name: '',

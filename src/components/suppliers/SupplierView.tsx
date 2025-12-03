@@ -56,8 +56,8 @@ export function SupplierView() {
     reset,
     formState: { errors },
   } = useForm<PaymentFormData>({
-    // @ts-expect-error - Zod v4 type compatibility issue with @hookform/resolvers
-    resolver: zodResolver(paymentFormSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(paymentFormSchema as any) as any,
     defaultValues: {
       amount: 0,
       date: new Date().toISOString().split('T')[0],
